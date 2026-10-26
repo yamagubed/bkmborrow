@@ -1,8 +1,8 @@
 test_that("counts follow the event-priority and censoring conventions", {
   cnt <- bkm_counts(time = c(2, 2, 3, 5, 7), status = c(1, 0, 1, 0, 1), tau = 6)
   expect_equal(cnt$N, c(5, 5, 3, 2, 2, 1))
-  expect_equal(cnt$D, c(0, 1, 1, 0, 0, 0))
-  expect_equal(cnt$Y, cnt$N - cnt$D)
+  expect_equal(cnt$X, c(0, 1, 1, 0, 0, 0))
+  expect_equal(cnt$Y, cnt$N - cnt$X)
   expect_error(bkm_counts(c(1, -1), c(1, 1), 5))
 })
 
@@ -36,7 +36,7 @@ test_that("weights behave as specified", {
   ff <- bkm_borrow(cur, his, tau = 365, method = "fixed", w = 1)
   cc <- lapply(cur, function(x) bkm_counts(x$time, x$status, 365))
   hh <- lapply(his, function(x) bkm_counts(x$time, x$status, 365))
-  pooled <- rmst_moments(0.001 + cc$control$D + hh$control$D, 1 + cc$control$Y + hh$control$Y)
+  pooled <- rmst_moments(0.001 + cc$control$X + hh$control$X, 1 + cc$control$Y + hh$control$Y)
   expect_equal(unname(ff$rmst["control", "mean"]), pooled$mean)
   fk1 <- bkm_borrow(cur, his, tau = 365, k = 0.5)
   z2 <- bkm_weight(cc$treatment, hh$treatment, 0.5)$z2
@@ -67,21 +67,28 @@ test_that("normal and draw-based posterior probabilities agree", {
   cur <- list(control = sim_arm(150, 1), treatment = sim_arm(150, 0.8))
   his <- list(control = sim_arm(60, 1), treatment = sim_arm(60, 0.8))
   fn <- bkm_borrow(cur, his, tau = 365, k = 0.5)
-  fd <- bkm_borrow(cur, his, tau = 365, k = 0.5, prob = "draws", ndraw = 20000)
-  expect_equal(fn$prob, fd$prob, tolerance = 0.02)
-  expect_error(bkm_borrow(cur, his, tau = 365, method = "rmst", prob = "draws"))
+  fd <- bkm_borrow(cur, his, tau = 365, k = 0.5, posterior = "draws", ndraw = 20000)
+  expect_equal(fn$eta, fd$eta, tolerance = 0.02)
+  expect_error(bkm_borrow(cur, his, tau = 365, method = "rmst", posterior = "draws"))
 })
 
-test_that("calibration returns the smallest valid threshold", {
-  set.seed(15)
-  pp <- cbind(runif(4000), runif(4000)^0.5)
-  cal <- calibrate_gamma(pp, alpha = 0.05)
-  expect_true(all(cal$rejection <= 0.05))
-  eps <- 1e-9
-  expect_true(any(colMeans(pp > cal$gamma - eps) > 0.05))
-  calu <- calibrate_gamma(pp, alpha = 0.05, criterion = "upper")
-  expect_gte(calu$gamma, cal$gamma)
+test_that("tolerance and success criterion behave as specified", {
   expect_equal(k_from_delta(10, 100), log(2))
+  set.seed(15)
+  cur <- list(control = sim_arm(100, 1), treatment = sim_arm(100, 0.7))
+  f <- bkm_borrow(cur, tau = 365, method = "none")
+  expect_identical(bkm_success(f, 0), TRUE)
+  expect_identical(bkm_success(f, 1), FALSE)
+  expect_equal(unname(f$diff["upper"] - f$diff["mean"]), qnorm(0.975) * unname(f$diff["sd"]))
+})
+
+test_that("follow-up is distinct from the RMST time point", {
+  set.seed(17)
+  d <- sim_arm(200, 1, follow_up = 730)
+  expect_true(max(d$time) > 365)
+  cnt <- bkm_counts(d$time, d$status, tau = 365)
+  expect_length(cnt$X, 365)
+  expect_equal(cnt$N[1], 200)
 })
 
 test_that("true RMST matches the closed form for a constant hazard", {

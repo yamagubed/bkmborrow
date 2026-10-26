@@ -12,17 +12,17 @@ true_rmst(
 )
 }
 \arguments{
-\item{hazard_mult}{Hazard multiplier relative to the reference rate: a
-number, or a vectorised function of the day returning multipliers.}
+\item{hazard_mult}{Hazard multiplier (number or function of the day), as in
+\code{\link{sim_arm}}.}
 
-\item{tau}{Administrative follow-up in days.}
+\item{tau}{RMST time point in days.}
 
-\item{base_rate}{Reference daily rate \eqn{\lambda_0} (default: median one year).}
+\item{base_rate}{Reference daily rate.}
 
 \item{convention}{RMST convention (see \code{\link{rmst_moments}}).}
 }
 \value{
-The RMST implied by the generating daily hazards.
+The RMST to \code{tau} implied by the generating daily hazards.
 }
 \description{
 True RMST of a simulated arm

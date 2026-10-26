@@ -1,17 +1,22 @@
 #' Daily event and event-free counts
 #'
 #' Converts individual survival data into the daily sufficient statistics of
-#' the discrete-time (daily) Bayesian Kaplan-Meier model. Times are rounded up
-#' to integer days. An event on day \eqn{d} takes priority over censoring on
-#' the same day, and a participant censored on day \eqn{d} is counted as
-#' event-free through day \eqn{d}.
+#' the Bayesian Kaplan-Meier model. Times are rounded up to integer days. An
+#' event on day \eqn{t} takes priority over censoring on the same day, and a
+#' participant censored on day \eqn{t} is counted as event-free through day
+#' \eqn{t}.
 #'
 #' @param time Positive follow-up times (in days; non-integers are rounded up).
 #' @param status Event indicator (1 = event, 0 = censored).
-#' @param tau Restriction horizon in days (positive integer).
-#' @return An object of class \code{"bkm_counts"}: a list with \code{D}
-#'   (events on each day \eqn{1,\dots,\tau}), \code{Y} (at risk minus events),
-#'   \code{N} (at risk) and \code{tau}.
+#' @param tau RMST time point \eqn{\tau} in days (positive integer). Only days
+#'   \eqn{1,\dots,\tau} enter the RMST to \eqn{\tau}, so counts are returned
+#'   for these days. \eqn{\tau} is distinct from the trial follow-up, which is
+#'   not restricted. Use the same \eqn{\tau} for the historical and current
+#'   trials.
+#' @return An object of class \code{"bkm_counts"}: a list with \code{X}
+#'   (number of events on each day \eqn{t = 1,\dots,\tau}), \code{Y} (number
+#'   event-free, \eqn{N - X}), \code{N} (number at risk at the start of the
+#'   day) and \code{tau}.
 #' @examples
 #' bkm_counts(time = c(3, 5, 5, 8), status = c(1, 0, 1, 1), tau = 6)
 #' @export
@@ -25,13 +30,13 @@ bkm_counts <- function(time, status, tau) {
   ev <- status == 1 & t <= tau
   x <- pmin(t, tau)
   N <- rev(cumsum(rev(tabulate(x, nbins = tau))))
-  D <- tabulate(t[ev], nbins = tau)
-  structure(list(D = D, Y = N - D, N = N, tau = tau), class = "bkm_counts")
+  X <- tabulate(t[ev], nbins = tau)
+  structure(list(X = X, Y = N - X, N = N, tau = tau), class = "bkm_counts")
 }
 
 #' @export
 print.bkm_counts <- function(x, ...) {
-  cat("Daily counts over", x$tau, "days:", sum(x$D), "events,",
+  cat("Daily counts over days 1 to", x$tau, ":", sum(x$X), "events,",
       x$N[1], "at risk on day 1\n")
   invisible(x)
 }
@@ -39,10 +44,22 @@ print.bkm_counts <- function(x, ...) {
 as_counts <- function(x, tau) {
   if (is.null(x)) return(NULL)
   if (inherits(x, "bkm_counts")) {
-    if (x$tau != tau) stop("counts object has a different horizon from 'tau'")
+    if (x$tau != tau) stop("counts object has a different RMST time point from 'tau'")
     return(x)
   }
   if (is.list(x) && all(c("time", "status") %in% names(x)))
     return(bkm_counts(x$time, x$status, tau))
   stop("each arm must be a 'bkm_counts' object or a data frame with 'time' and 'status'")
+}
+
+## internal: apply a function over replicates, in parallel on any platform
+par_apply <- function(X, FUN, cores = 1) {
+  if (cores <= 1) return(lapply(X, FUN))
+  if (.Platform$OS.type == "windows") {
+    cl <- parallel::makeCluster(cores)
+    on.exit(parallel::stopCluster(cl))
+    parallel::clusterEvalQ(cl, suppressPackageStartupMessages(library(bkmborrow)))
+    return(parallel::parLapply(cl, X, FUN))
+  }
+  parallel::mclapply(X, FUN, mc.cores = cores)
 }

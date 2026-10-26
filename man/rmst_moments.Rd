@@ -7,7 +7,7 @@
 rmst_moments(A, B, convention = c("left", "endpoint"))
 }
 \arguments{
-\item{A, B}{Vectors of beta shape parameters, one per day.}
+\item{A, B}{Vectors of beta shape parameters, one per day \eqn{t = 1,\dots,\tau}.}
 
 \item{convention}{\code{"left"} (default) or \code{"endpoint"}.}
 }
@@ -15,15 +15,18 @@ rmst_moments(A, B, convention = c("left", "endpoint"))
 A list with \code{mean} and \code{var}.
 }
 \description{
-For independent daily hazards \eqn{p_d \sim \mathrm{Beta}(A_d, B_d)},
-computes the exact mean and variance of the restricted mean survival time.
-With \code{convention = "left"} the RMST is \eqn{\sum_{t=0}^{K-1} S(t)},
-the area under the step survival function for integer event times; with
-\code{"endpoint"} it is \eqn{\sum_{t=1}^{K} S(t)}.
-}
-\details{
-The computation uses \eqn{E\{S(t)S(u)\} = E\{S(t)^2\}\,E\{S(u)\}/E\{S(t)\}}
-for \eqn{t \le u}, so it needs work proportional to \eqn{K}.
+For independent daily hazards \eqn{p_t \sim \mathrm{Beta}(A_t, B_t)},
+\eqn{t = 1,\dots,\tau}, computes the exact mean and variance of the
+restricted mean survival time \eqn{\mu = \sum_{t=0}^{\tau-1} S(t)}, where
+\eqn{S(t) = \prod_{u \le t}(1 - p_u)}. With \eqn{q_{1t} = B_t/(A_t + B_t)},
+\eqn{q_{2t} = q_{1t}(B_t + 1)/(A_t + B_t + 1)},
+\eqn{m_1(t) = \prod_{u \le t} q_{1u}} and \eqn{m_2(t) = \prod_{u \le t} q_{2u}},
+\deqn{E(\mu) = \sum_{t=0}^{\tau-1} m_1(t),\quad
+E(\mu^2) = \sum_{t=0}^{\tau-1} m_2(t) + 2\sum_{t=0}^{\tau-1}
+\frac{m_2(t)}{m_1(t)} \sum_{v=t+1}^{\tau-1} m_1(v).}
+The computation needs \eqn{O(\tau)} operations. With
+\code{convention = "endpoint"}, the RMST is instead
+\eqn{\sum_{t=1}^{\tau} S(t)} (Paydarfar et al., 2026).
 }
 \examples{
 rmst_moments(A = rep(1, 30), B = rep(100, 30))

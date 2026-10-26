@@ -9,17 +9,20 @@ bkm_weight(cur, hist, k, prior = c(0.001, 1), convention = "left")
 \arguments{
 \item{cur, hist}{\code{bkm_counts} objects for the current and historical arm.}
 
-\item{k}{Non-negative tuning constant (\code{Inf} gives no borrowing).}
+\item{k}{Non-negative tuning constant \eqn{k_g} (\code{Inf} gives no borrowing).}
 
-\item{prior}{Shape parameters \eqn{(a_0, b_0)} of the daily beta prior.}
+\item{prior}{Shape parameters \eqn{(a_0, b_0)} of the reference prior.}
 
 \item{convention}{RMST convention passed to \code{\link{rmst_moments}}.}
 }
 \value{
-A list with the weight \code{w}, \code{z2}, and the two sets of moments.
+A list with the weight \code{w}, \code{z2} (\eqn{Z_g^2}), and the
+  current and historical posterior moments.
 }
 \description{
-Computes \eqn{Z^2 = (\hat\mu_3 - \hat\mu_2)^2 / (V_3 + V_2)} from the
-current-only and historical-only Bayesian Kaplan-Meier posteriors of the
-arm's RMST, and returns \eqn{w = \exp(-k Z^2)}.
+Computes the standardized discrepancy
+\eqn{Z_g = (\hat\mu_{1g} - \hat\mu_{0g}) / (V_{1g} + V_{0g})^{1/2}} from the
+current-only (\eqn{s = 1}) and historical-only (\eqn{s = 0}) Bayesian
+Kaplan-Meier posteriors of the arm's RMST under the reference prior, and
+returns \eqn{w_g = \exp(-k_g Z_g^2)}.
 }

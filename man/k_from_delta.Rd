@@ -2,25 +2,24 @@
 % Please edit documentation in R/borrow.R
 \name{k_from_delta}
 \alias{k_from_delta}
-\title{Tuning constant from a clinically elicited tolerance}
+\title{Tuning constant from a tolerance in days}
 \usage{
 k_from_delta(delta, v_design)
 }
 \arguments{
-\item{delta}{Tolerance in days (the discrepancy receiving half weight).}
+\item{delta}{Tolerance \eqn{\delta} in days (the discrepancy receiving half weight).}
 
-\item{v_design}{Design-stage variance of the difference between the
-current and historical arm-level RMST estimates, for example from
-\code{\link{design_variance}}.}
+\item{v_design}{Design stage value \eqn{\bar V_g} of \eqn{V_{1g} + V_{0g}},
+for example from \code{\link{design_variance}}.}
 }
 \value{
-The tuning constant \eqn{k}.
+The tuning constant \eqn{k_g}.
 }
 \description{
-Returns \eqn{k = \log(2)\, V / \delta^2}, so that the borrowing weight
-\eqn{w = \exp(-k Z^2)} equals 1/2 when the historical and current
-arm-level RMSTs differ by \eqn{\delta} days and the variance of their
-difference equals its design value \eqn{V}.
+Returns \eqn{k_g = \log(2)\, \bar V_g / \delta^2}, so that the borrowing
+weight \eqn{w_g = \exp(-k_g Z_g^2)} equals 1/2 when the historical and
+current arm-level RMSTs differ by \eqn{\delta} days and
+\eqn{V_{1g} + V_{0g} = \bar V_g}.
 }
 \examples{
 k_from_delta(delta = 20, v_design = 280)

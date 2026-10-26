@@ -4,7 +4,13 @@
 \alias{sim_arm}
 \title{Simulate one arm of a trial on a daily grid}
 \usage{
-sim_arm(n, hazard_mult = 1, tau = 365, base_rate = log(2)/365, dropout = 0.15)
+sim_arm(
+  n,
+  hazard_mult = 1,
+  follow_up = 365,
+  base_rate = log(2)/365,
+  dropout = 0.15
+)
 }
 \arguments{
 \item{n}{Number of participants.}
@@ -12,11 +18,11 @@ sim_arm(n, hazard_mult = 1, tau = 365, base_rate = log(2)/365, dropout = 0.15)
 \item{hazard_mult}{Hazard multiplier relative to the reference rate: a
 number, or a vectorised function of the day returning multipliers.}
 
-\item{tau}{Administrative follow-up in days.}
+\item{follow_up}{Administrative follow-up in days.}
 
 \item{base_rate}{Reference daily rate \eqn{\lambda_0} (default: median one year).}
 
-\item{dropout}{Probability of dropout by \code{tau} without events.}
+\item{dropout}{Probability of dropout by \code{follow_up} without events.}
 }
 \value{
 A data frame with integer \code{time} and \code{status}.
@@ -25,8 +31,10 @@ A data frame with integer \code{time} and \code{status}.
 Event times follow a geometric distribution with daily hazard
 \eqn{1 - \exp(-\lambda_0 m)}, where \eqn{m} is a hazard multiplier, either
 constant or a function of the day. Independent geometric dropout is chosen
-so that its probability by \code{tau} is \code{dropout} in the absence of
-events; follow-up ends administratively at \code{tau}.
+so that its probability by the end of follow-up is \code{dropout} in the
+absence of events, and follow-up ends administratively at day
+\code{follow_up}. The follow-up is distinct from the RMST time point
+\eqn{\tau} used in the analysis.
 }
 \examples{
 set.seed(4)

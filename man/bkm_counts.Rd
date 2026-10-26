@@ -11,19 +11,24 @@ bkm_counts(time, status, tau)
 
 \item{status}{Event indicator (1 = event, 0 = censored).}
 
-\item{tau}{Restriction horizon in days (positive integer).}
+\item{tau}{RMST time point \eqn{\tau} in days (positive integer). Only days
+\eqn{1,\dots,\tau} enter the RMST to \eqn{\tau}, so counts are returned
+for these days. \eqn{\tau} is distinct from the trial follow-up, which is
+not restricted. Use the same \eqn{\tau} for the historical and current
+trials.}
 }
 \value{
-An object of class \code{"bkm_counts"}: a list with \code{D}
-  (events on each day \eqn{1,\dots,\tau}), \code{Y} (at risk minus events),
-  \code{N} (at risk) and \code{tau}.
+An object of class \code{"bkm_counts"}: a list with \code{X}
+  (number of events on each day \eqn{t = 1,\dots,\tau}), \code{Y} (number
+  event-free, \eqn{N - X}), \code{N} (number at risk at the start of the
+  day) and \code{tau}.
 }
 \description{
 Converts individual survival data into the daily sufficient statistics of
-the discrete-time (daily) Bayesian Kaplan-Meier model. Times are rounded up
-to integer days. An event on day \eqn{d} takes priority over censoring on
-the same day, and a participant censored on day \eqn{d} is counted as
-event-free through day \eqn{d}.
+the Bayesian Kaplan-Meier model. Times are rounded up to integer days. An
+event on day \eqn{t} takes priority over censoring on the same day, and a
+participant censored on day \eqn{t} is counted as event-free through day
+\eqn{t}.
 }
 \examples{
 bkm_counts(time = c(3, 5, 5, 8), status = c(1, 0, 1, 1), tau = 6)

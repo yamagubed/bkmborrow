@@ -2,7 +2,7 @@
 % Please edit documentation in R/calibrate_delta.R
 \name{calibrate_delta}
 \alias{calibrate_delta}
-\title{Design-stage calibration of the tolerance}
+\title{Design stage calibration of the tolerance}
 \usage{
 calibrate_delta(
   n_current,
@@ -16,6 +16,7 @@ calibrate_delta(
   alpha_cal = 0.04,
   R = 5000,
   tau = 365,
+  follow_up = tau,
   prior = c(0.001, 1),
   seed = NULL,
   cores = 1,
@@ -26,49 +27,57 @@ calibrate_delta(
 \item{n_current}{Current sample size per arm.}
 
 \item{n_hist}{Named vector of historical sample sizes, e.g.
-\code{c(control = 150)}, \code{c(treatment = 150)} or both.}
+\code{c(control = 150)} (configuration C), \code{c(treatment = 150)}
+(configuration T), or both (configuration B).}
 
-\item{v_design}{Named vector of design variances \eqn{V_g}
+\item{v_design}{Named vector of design stage values \eqn{\bar V_g}
 (see \code{\link{design_variance}}) for the arms with historical data.}
 
-\item{gamma0}{Decision threshold (e.g. from \code{\link{gamma_nb}}).}
+\item{gamma0}{Threshold \eqn{\gamma_0} of the success criterion (e.g. from
+\code{\link{gamma_nb}}).}
 
-\item{drift_control, drift_treatment}{Calibration ranges of drift hazard
-ratios for the historical control and treatment arms.}
+\item{drift_control, drift_treatment}{Calibration ranges of the drift
+\eqn{d_0} (historical control) and \eqn{d_1} (historical treatment).}
 
 \item{method}{\code{"hazard"} (RG-H) or \code{"rmst"} (RG-R).}
 
-\item{delta_grid}{Candidate tolerances in days.}
+\item{delta_grid}{Candidate tolerances \eqn{\mathcal{T}} in days.}
 
-\item{alpha_cal}{Calibration tolerance for the type I error.}
+\item{alpha_cal}{Maximum type I error \eqn{\alpha_{\mathrm{cal}}} allowed
+over the calibration range.}
 
 \item{R}{Replicates per drift configuration.}
 
-\item{tau}{Horizon in days.}
+\item{tau}{RMST time point in days.}
 
-\item{prior}{Daily beta prior.}
+\item{follow_up}{Follow-up in days (default \code{tau}).}
+
+\item{prior}{Reference prior \eqn{(a_0, b_0)}.}
 
 \item{seed}{Random seed.}
 
-\item{cores}{Number of cores (uses \code{parallel::mclapply} when > 1).}
+\item{cores}{Number of cores (parallel on all platforms when > 1).}
 
 \item{...}{Further arguments to \code{\link{sim_arm}}.}
 }
 \value{
 A list with the selected \code{delta}, the tuning constants
-  \code{k}, the matrix of estimated type I error rates (drift
+  \code{k}, the maximum type I error over the range for each candidate
+  (\code{max_type1}), the matrix of estimated type I error rates (drift
   configurations by tolerances), and the drift configurations.
 }
 \description{
 Selects the largest tolerance \eqn{\delta} (days) such that the maximum
-type I error over a prespecified calibration range of historical drift does
-not exceed \code{alpha_cal}, with the decision threshold fixed at
-\code{gamma0}. Drift is the hazard ratio of a historical arm relative to the
-corresponding current arm. Type I error inflation arises when the historical
-control is worse (drift > 1) or the historical treatment is better
-(drift < 1), so the default ranges cover these harmful sides; when both
-historical arms are available, all combinations are used.
-The tuning constants are \eqn{k_g = \log(2) V_g / \delta^2}.
+type I error of the success criterion \eqn{\eta > \gamma_0} over a
+prespecified calibration range \eqn{\Omega_{\mathrm{cal}}} of historical
+drift does not exceed \code{alpha_cal}, with \eqn{\gamma_0} fixed.
+The drift \eqn{d_g} is the hazard ratio of historical arm \eqn{g} relative to
+the corresponding current arm. Borrowing inflates the type I error when the
+historical control has a higher hazard (\eqn{d_0 > 1}) or the historical
+treatment arm a lower hazard (\eqn{d_1 < 1}), so the default ranges cover
+these harmful sides; when both historical arms are available
+(configuration B), all combinations are used.
+The tuning constants are \eqn{k_g = \log(2)\, \bar V_g / \delta^2}.
 }
 \examples{
 \donttest{

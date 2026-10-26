@@ -2,38 +2,43 @@
 % Please edit documentation in R/simulate.R
 \name{design_variance}
 \alias{design_variance}
-\title{Design-stage variance for the tuning constant}
+\title{Design stage variance for the tuning constant}
 \usage{
 design_variance(
   n_current,
   n_historical,
   hazard_mult = 1,
   tau = 365,
+  follow_up = tau,
   nsim = 1000,
   prior = c(0.001, 1),
   ...
 )
 }
 \arguments{
-\item{n_current, n_historical}{Arm sample sizes.}
+\item{n_current, n_historical}{Arm sample sizes in the current and
+historical trials.}
 
 \item{hazard_mult}{Planning hazard multiplier for the arm.}
 
-\item{tau}{Horizon in days.}
+\item{tau}{RMST time point in days.}
+
+\item{follow_up}{Follow-up in days (default \code{tau}).}
 
 \item{nsim}{Number of simulated trial pairs.}
 
-\item{prior}{Daily beta prior.}
+\item{prior}{Daily beta prior \eqn{(a_0, b_0)}.}
 
-\item{...}{Further arguments to \code{\link{sim_arm}}.}
+\item{...}{Further arguments to \code{\link{sim_arm}} (e.g. \code{dropout}).}
 }
 \value{
-Mean of \eqn{V_3 + V_2} over simulated pairs.
+Mean of \eqn{V_{1g} + V_{0g}} over simulated pairs.
 }
 \description{
-Estimates, by simulation under planning assumptions, the expected variance
-\eqn{V_3 + V_2} of the difference between the current and historical
-arm-level RMST posterior means, for use in \code{\link{k_from_delta}}.
+Estimates \eqn{\bar V_g}, the design stage value of \eqn{V_{1g} + V_{0g}},
+the sum of the current-only and historical-only posterior variances of the
+arm-level RMST, by simulation under planning assumptions. It is used in
+\code{\link{k_from_delta}}.
 }
 \examples{
 set.seed(5)

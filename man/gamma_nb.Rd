@@ -8,6 +8,7 @@ gamma_nb(
   n_current,
   alpha = 0.025,
   tau = 365,
+  follow_up = tau,
   R = 1e+05,
   prior = c(0.001, 1),
   seed = NULL,
@@ -19,11 +20,13 @@ gamma_nb(
 
 \item{alpha}{Target type I error.}
 
-\item{tau}{Horizon in days.}
+\item{tau}{RMST time point in days.}
+
+\item{follow_up}{Follow-up in days (default \code{tau}).}
 
 \item{R}{Number of simulated trials.}
 
-\item{prior}{Daily beta prior.}
+\item{prior}{Reference prior \eqn{(a_0, b_0)}.}
 
 \item{seed}{Random seed.}
 
@@ -33,9 +36,9 @@ gamma_nb(
 The threshold \eqn{\gamma_0}.
 }
 \description{
-Simulates current trials under the null hypothesis and returns the
-posterior-probability threshold \eqn{\gamma_0} at which the analysis
-without borrowing has type I error \code{alpha}.
+Simulates current trials under the null hypothesis (\eqn{\Delta = 0}) and
+returns the threshold \eqn{\gamma_0} at which the success criterion
+\eqn{\eta > \gamma_0} without borrowing has type I error \code{alpha}.
 }
 \examples{
 gamma_nb(150, R = 2000, seed = 1)

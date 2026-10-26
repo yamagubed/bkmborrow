@@ -13,7 +13,7 @@ bkm_borrow(
   w = 0.5,
   prior = c(0.001, 1),
   delta0 = 0,
-  prob = c("normal", "draws"),
+  posterior = c("normal", "draws"),
   ndraw = 4000,
   convention = c("left", "endpoint")
 )
@@ -25,40 +25,55 @@ a data frame with \code{time} and \code{status} or a \code{bkm_counts} object.}
 \item{historical}{List with elements \code{control} and/or \code{treatment};
 a missing or \code{NULL} element means no historical data for that arm.}
 
-\item{tau}{Restriction horizon in days.}
+\item{tau}{RMST time point \eqn{\tau} in days, common to both trials (see
+\code{\link{bkm_counts}}).}
 
 \item{method}{\code{"hazard"} (RG-H, default), \code{"rmst"} (RG-R),
 \code{"fixed"} (fixed power prior with weight \code{w} on the daily counts),
-or \code{"none"}.}
+or \code{"none"} (no borrowing).}
 
-\item{k}{Tuning constant(s) for \code{"hazard"} and \code{"rmst"}: a single
-value or a named vector \code{c(control = , treatment = )}.}
+\item{k}{Tuning constant(s) \eqn{k_g} for \code{"hazard"} and \code{"rmst"}:
+a single value or a named vector \code{c(control = , treatment = )}.}
 
 \item{w}{Fixed weight(s) for \code{"fixed"} (scalar or named vector).}
 
-\item{prior}{Daily beta prior shape parameters \eqn{(a_0, b_0)}.}
+\item{prior}{Reference prior shape parameters \eqn{(a_0, b_0)}.}
 
-\item{delta0}{Margin for the posterior probability \eqn{P(\Delta > \delta_0)}.}
+\item{delta0}{Margin \eqn{\delta_0} in \eqn{\Pr(\Delta > \delta_0 \mid \mathcal{D})} (default 0).}
 
-\item{prob}{\code{"normal"} (normal approximation using exact moments,
-default) or \code{"draws"} (posterior simulation; hazard-level methods only).}
+\item{posterior}{\code{"normal"} (normal approximation with exact moments,
+default) or \code{"draws"} (posterior sampling; RG-H, fixed power prior
+and no borrowing only).}
 
-\item{ndraw}{Number of draws when \code{prob = "draws"}.}
+\item{ndraw}{Number of draws when \code{posterior = "draws"}.}
 
 \item{convention}{RMST convention (see \code{\link{rmst_moments}}).}
 }
 \value{
-An object of class \code{"bkmborrow"}.
+An object of class \code{"bkmborrow"} with the weights, arm-level
+  posterior RMST moments, the posterior summary of \eqn{\Delta}
+  (\code{diff}) and \code{eta}.
 }
 \description{
-Fits the daily-beta Bayesian Kaplan-Meier model to a two-arm current trial,
-borrowing historical data for the control arm, the treatment arm, or both,
-with the RMST-guided weight \eqn{w_g = \exp(-k_g Z_g^2)}.
-With \code{method = "hazard"} (RG-H) the historical daily counts of arm
-\eqn{g} are multiplied by \eqn{w_g}, so each daily hazard has posterior
-\eqn{\mathrm{Beta}(a_0 + w_g D_{0gd} + D_{1gd},\ b_0 + w_g Y_{0gd} + Y_{1gd})}.
-With \code{method = "rmst"} (RG-R) the current and historical arm-level
+Fits the Bayesian Kaplan-Meier model to a two-arm current trial, borrowing
+historical data for the control arm (configuration C), the treatment arm
+(configuration T), or both (configuration B), with the RMST-guided weight
+\eqn{w_g = \exp(-k_g Z_g^2)}.
+With \code{method = "hazard"} (RG-H), the historical daily counts of arm
+\eqn{g} are multiplied by \eqn{w_g}, so each current daily hazard has the
+power-prior posterior
+\eqn{\mathrm{Beta}(a_0 + w_g X_{0gt} + X_{1gt},\ b_0 + w_g Y_{0gt} + Y_{1gt})}.
+With \code{method = "rmst"} (RG-R), the current and historical arm-level
 posterior RMSTs are combined as a normal power prior with weight \eqn{w_g}.
+}
+\details{
+The posterior probability that the treatment is beneficial,
+\eqn{\eta = \Pr(\Delta > \delta_0 \mid \mathcal{D})} with
+\eqn{\Delta = \mu_{11} - \mu_{10}}, is by default computed by the normal
+approximation \eqn{\Phi\{(E(\Delta \mid \mathcal{D}) - \delta_0) /
+\mathrm{Var}(\Delta \mid \mathcal{D})^{1/2}\}} with the exact posterior
+moments, and the 95\% credible interval is
+\eqn{E(\Delta \mid \mathcal{D}) \pm 1.96\, \mathrm{Var}(\Delta \mid \mathcal{D})^{1/2}}.
 }
 \examples{
 set.seed(2)

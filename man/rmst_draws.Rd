@@ -7,7 +7,7 @@
 rmst_draws(A, B, ndraw = 4000, convention = c("left", "endpoint"))
 }
 \arguments{
-\item{A, B}{Vectors of beta shape parameters, one per day.}
+\item{A, B}{Vectors of beta shape parameters, one per day \eqn{t = 1,\dots,\tau}.}
 
 \item{ndraw}{Number of posterior draws.}
 
