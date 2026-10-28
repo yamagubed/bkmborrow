@@ -54,6 +54,8 @@ gamma_nb <- function(n_current, alpha = 0.025, tau = 365, follow_up = tau, R = 1
 #' @param drift_control,drift_treatment Calibration ranges of the drift
 #'   \eqn{d_0} (historical control) and \eqn{d_1} (historical treatment).
 #' @param method \code{"hazard"} (RG-H) or \code{"rmst"} (RG-R).
+#' @param variance \code{"adjusted"} (default) or \code{"posterior"}; as in
+#'   \code{\link{bkm_borrow}}. Use the same choice at the analysis.
 #' @param delta_grid Candidate tolerances \eqn{\mathcal{T}} in days.
 #' @param alpha_cal Maximum type I error \eqn{\alpha_{\mathrm{cal}}} allowed
 #'   over the calibration range.
@@ -79,11 +81,12 @@ gamma_nb <- function(n_current, alpha = 0.025, tau = 365, follow_up = tau, R = 1
 calibrate_delta <- function(n_current, n_hist, v_design, gamma0,
                             drift_control = c(1, 1.05, 1.10),
                             drift_treatment = c(0.90, 0.95, 1),
-                            method = c("hazard", "rmst"),
+                            method = c("hazard", "rmst"), variance = c("adjusted", "posterior"),
                             delta_grid = c(1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50, 60),
                             alpha_cal = 0.04, R = 5000, tau = 365, follow_up = tau,
                             prior = c(0.001, 1), seed = NULL, cores = 1, ...) {
   method <- match.arg(method)
+  variance <- match.arg(variance)
   arms <- names(n_hist)
   if (!length(arms) || !all(arms %in% c("control", "treatment")))
     stop("'n_hist' must be named 'control' and/or 'treatment'")
@@ -113,10 +116,12 @@ calibrate_delta <- function(n_current, n_hist, v_design, gamma0,
       for (i in seq_along(delta_grid)) {
         mm <- lapply(c("control", "treatment"), function(a) {
           if (!a %in% arms) return(m1[[a]])
-          w <- exp(-kfac[[a]] / delta_grid[i]^2 * z2[[a]])
-          if (method == "hazard") return(mom(cur[[a]], his[[a]], w))
-          prec <- 1 / m1[[a]]$var + w / m0[[a]]$var
-          list(mean = (m1[[a]]$mean / m1[[a]]$var + w * m0[[a]]$mean / m0[[a]]$var) / prec, var = 1 / prec)
+          kk <- kfac[[a]] / delta_grid[i]^2
+          w <- exp(-kk * z2[[a]])
+          vr <- 1 / (1 / m1[[a]]$var + w / m0[[a]]$var)
+          infl <- if (variance == "adjusted") adjusted_variance(m1[[a]], m0[[a]], w, kk) / vr else 1
+          if (method == "hazard") { m <- mom(cur[[a]], his[[a]], w); m$var <- m$var * infl; return(m) }
+          list(mean = (m1[[a]]$mean / m1[[a]]$var + w * m0[[a]]$mean / m0[[a]]$var) * vr, var = vr * infl)
         })
         out[j, i] <- stats::pnorm((mm[[2]]$mean - mm[[1]]$mean) / sqrt(mm[[1]]$var + mm[[2]]$var))
       }
@@ -131,5 +136,5 @@ calibrate_delta <- function(n_current, n_hist, v_design, gamma0,
   delta <- if (length(ok)) max(delta_grid[ok]) else NA_real_
   k <- if (is.na(delta)) stats::setNames(rep(Inf, length(arms)), arms) else kfac / delta^2
   list(delta = delta, k = k, max_type1 = stats::setNames(mx, delta_grid), type1 = rej,
-       drift = grid, method = method, gamma0 = gamma0, alpha_cal = alpha_cal, R = R)
+       drift = grid, method = method, variance = variance, gamma0 = gamma0, alpha_cal = alpha_cal, R = R)
 }

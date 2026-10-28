@@ -66,10 +66,11 @@ test_that("normal and draw-based posterior probabilities agree", {
   set.seed(14)
   cur <- list(control = sim_arm(150, 1), treatment = sim_arm(150, 0.8))
   his <- list(control = sim_arm(60, 1), treatment = sim_arm(60, 0.8))
-  fn <- bkm_borrow(cur, his, tau = 365, k = 0.5)
-  fd <- bkm_borrow(cur, his, tau = 365, k = 0.5, posterior = "draws", ndraw = 20000)
+  fn <- bkm_borrow(cur, his, tau = 365, k = 0.5, variance = "posterior")
+  fd <- bkm_borrow(cur, his, tau = 365, k = 0.5, variance = "posterior", posterior = "draws", ndraw = 20000)
   expect_equal(fn$eta, fd$eta, tolerance = 0.02)
-  expect_error(bkm_borrow(cur, his, tau = 365, method = "rmst", posterior = "draws"))
+  expect_error(bkm_borrow(cur, his, tau = 365, method = "rmst", variance = "posterior", posterior = "draws"))
+  expect_error(bkm_borrow(cur, his, tau = 365, posterior = "draws"))
 })
 
 test_that("tolerance and success criterion behave as specified", {
@@ -101,7 +102,7 @@ test_that("RG-R combines arm-level RMSTs as a normal power prior", {
   set.seed(16)
   cur <- list(control = sim_arm(150, 1), treatment = sim_arm(150, 0.8))
   his <- list(control = sim_arm(100, 1), treatment = sim_arm(100, 0.8))
-  f <- bkm_borrow(cur, his, tau = 365, method = "rmst", k = 0.5)
+  f <- bkm_borrow(cur, his, tau = 365, method = "rmst", k = 0.5, variance = "posterior")
   cc <- bkm_counts(cur$control$time, cur$control$status, 365)
   hh <- bkm_counts(his$control$time, his$control$status, 365)
   w <- bkm_weight(cc, hh, 0.5)
@@ -121,4 +122,44 @@ test_that("calibrate_delta returns an admissible tolerance", {
   calr <- calibrate_delta(100, c(control = 100, treatment = 100), v_design = c(control = 250, treatment = 220),
                           gamma0 = 0.976, delta_grid = c(2, 10), R = 20, seed = 4, method = "rmst")
   expect_equal(nrow(calr$drift), 9)
+})
+
+test_that("adjusted variance accounts for the data-dependent weight", {
+  m1 <- list(mean = 260, var = 50); m0 <- list(mean = 260, var = 40)
+  vr <- function(w) 1 / (1 / m1$var + w / m0$var)
+  expect_equal(adjusted_variance(m1, m0, 1, 2), vr(1))                    # D = 0
+  m0b <- list(mean = 252, var = 40); w <- exp(-0.5 * 64 / 90)
+  expect_equal(adjusted_variance(m1, m0b, w, 0), (1 - w * 50 / (40 + w * 50))^2 * 50 + (w * 50 / (40 + w * 50))^2 * 40)
+  expect_gt(adjusted_variance(m1, m0b, w, 0.5), vr(w))
+  expect_equal(adjusted_variance(m1, m0b, 0, Inf), 50)
+  ## Monte Carlo: adjusted variance tracks the sampling variance of the RG-R estimate
+  set.seed(18); V1 <- 100; V0 <- 100; k <- 1
+  a <- rnorm(4e4, 0, 10); b <- rnorm(4e4, 0, 10); D <- b - a
+  w <- exp(-k * D^2 / (V1 + V0)); est <- a + w * V1 / (V0 + w * V1) * D
+  va <- mapply(function(x, y, ww) adjusted_variance(list(mean = x, var = V1), list(mean = y, var = V0), ww, k), a, b, w)
+  expect_lt(mean(1 / (1 / V1 + w / V0)), var(est))
+  expect_gt(mean(va), var(est))
+  ## in bkm_borrow
+  set.seed(19)
+  cur <- list(control = sim_arm(150, 1), treatment = sim_arm(150, 0.8))
+  his <- list(control = sim_arm(100, 1.1), treatment = sim_arm(100, 0.8))
+  fa <- bkm_borrow(cur, his, tau = 365, k = 0.5); fp <- bkm_borrow(cur, his, tau = 365, k = 0.5, variance = "posterior")
+  expect_equal(fa$diff[["mean"]], fp$diff[["mean"]])
+  expect_gte(fa$diff[["sd"]], fp$diff[["sd"]])
+  f0 <- bkm_borrow(cur, his, tau = 365, k = Inf)
+  expect_equal(f0$diff, bkm_borrow(cur, his, tau = 365, method = "none")$diff)
+})
+
+test_that("power bound matches the linear programme and reduces to no borrowing", {
+  v <- c(control = 52.4, treatment = 44.6)
+  expect_equal(power_bound(25.84, v, 52.4, "control", 7.9)$power, 0.832, tolerance = 1e-3)
+  expect_equal(power_bound(25.84, v, 52.4, "control", 4.0)$power, 0.866, tolerance = 1e-3)
+  b <- power_bound(25.84, v, 52.4, "control", 20)
+  expect_equal(b$power, b$power_nb); expect_equal(b$lambda, 0)
+  expect_gt(power_bound(25.84, v, 52.4, "control", 0)$power, power_bound(25.84, v, 52.4, "control", 5)$power)
+  ## the attaining fixed-weight test has size alpha at the edge and power equal to the bound
+  r <- power_bound(25.84, v, 52.4, "treatment", 3); s2 <- sum(v); V1 <- v[["treatment"]]
+  vt <- s2 + 2 * r$lambda * (-V1) + r$lambda^2 * (V1 + 52.4)
+  crit <- r$lambda * 3 + qnorm(0.96) * sqrt(vt)
+  expect_equal(1 - pnorm((crit - 25.84) / sqrt(vt)), r$power, tolerance = 1e-8)
 })

@@ -12,6 +12,7 @@ calibrate_delta(
   drift_control = c(1, 1.05, 1.1),
   drift_treatment = c(0.9, 0.95, 1),
   method = c("hazard", "rmst"),
+  variance = c("adjusted", "posterior"),
   delta_grid = c(1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50, 60),
   alpha_cal = 0.04,
   R = 5000,
@@ -40,6 +41,9 @@ calibrate_delta(
 \eqn{d_0} (historical control) and \eqn{d_1} (historical treatment).}
 
 \item{method}{\code{"hazard"} (RG-H) or \code{"rmst"} (RG-R).}
+
+\item{variance}{\code{"adjusted"} (default) or \code{"posterior"}; as in
+\code{\link{bkm_borrow}}. Use the same choice at the analysis.}
 
 \item{delta_grid}{Candidate tolerances \eqn{\mathcal{T}} in days.}
 

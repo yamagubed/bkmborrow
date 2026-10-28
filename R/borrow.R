@@ -17,6 +17,35 @@ k_from_delta <- function(delta, v_design) {
   log(2) * v_design / delta^2
 }
 
+#' Variance of the borrowed arm-level RMST accounting for the data-dependent weight
+#'
+#' The RMST-guided estimate of arm \eqn{g} is
+#' \eqn{\tilde\mu_g = \hat\mu_{1g} + \lambda_g D_g}, with
+#' \eqn{D_g = \hat\mu_{0g} - \hat\mu_{1g}} and
+#' \eqn{\lambda_g = w_g V_{1g} / (V_{0g} + w_g V_{1g})}. Because
+#' \eqn{w_g = \exp(-k_g Z_g^2)} depends on \eqn{D_g}, the posterior variance
+#' \eqn{(1/V_{1g} + w_g/V_{0g})^{-1}}, which treats \eqn{w_g} as fixed, understates
+#' the variability of \eqn{\tilde\mu_g}. The delta method, with
+#' \eqn{\lambda_g' = d\lambda_g/dD_g}, gives
+#' \deqn{V^{\mathrm{adj}}_g = (1 - \lambda_g - D_g\lambda_g')^2 V_{1g} + (\lambda_g + D_g\lambda_g')^2 V_{0g},}
+#' which equals the posterior variance when \eqn{D_g = 0} or \eqn{k_g = 0}.
+#'
+#' @param m1,m0 Lists with \code{mean} and \code{var}: the current-only and
+#'   historical-only posterior moments of the arm-level RMST.
+#' @param w Borrowing weight \eqn{w_g}.
+#' @param k Tuning constant \eqn{k_g}.
+#' @return \eqn{V^{\mathrm{adj}}_g}.
+#' @examples
+#' adjusted_variance(list(mean = 260, var = 50), list(mean = 255, var = 50), w = 0.8, k = 1)
+#' @export
+adjusted_variance <- function(m1, m0, w, k) {
+  V1 <- m1$var; V0 <- m0$var; D <- m0$mean - m1$mean
+  if (w <= 0 || is.infinite(k)) return(V1)
+  lam <- w * V1 / (V0 + w * V1)
+  dlam <- V1 * V0 / (V0 + w * V1)^2 * (-2 * k * D / (V1 + V0) * w)
+  (1 - lam - D * dlam)^2 * V1 + (lam + D * dlam)^2 * V0
+}
+
 #' RMST-guided borrowing weight for one arm
 #'
 #' Computes the standardized discrepancy
@@ -53,6 +82,13 @@ bkm_weight <- function(cur, hist, k, prior = c(0.001, 1), convention = "left") {
 #' With \code{method = "rmst"} (RG-R), the current and historical arm-level
 #' posterior RMSTs are combined as a normal power prior with weight \eqn{w_g}.
 #'
+#' By default (\code{variance = "adjusted"}), the variance of each borrowed
+#' arm-level RMST accounts for the dependence of \eqn{w_g} on the data
+#' (\code{\link{adjusted_variance}}): RG-R uses \eqn{V^{\mathrm{adj}}_g}
+#' directly and RG-H multiplies its posterior variance by
+#' \eqn{V^{\mathrm{adj}}_g (1/V_{1g} + w_g/V_{0g})}. With
+#' \code{variance = "posterior"} the weight is treated as fixed.
+#'
 #' The posterior probability that the treatment is beneficial,
 #' \eqn{\eta = \Pr(\Delta > \delta_0 \mid \mathcal{D})} with
 #' \eqn{\Delta = \mu_{11} - \mu_{10}}, is by default computed by the normal
@@ -75,9 +111,11 @@ bkm_weight <- function(cur, hist, k, prior = c(0.001, 1), convention = "left") {
 #' @param w Fixed weight(s) for \code{"fixed"} (scalar or named vector).
 #' @param prior Reference prior shape parameters \eqn{(a_0, b_0)}.
 #' @param delta0 Margin \eqn{\delta_0} in \eqn{\Pr(\Delta > \delta_0 \mid \mathcal{D})} (default 0).
+#' @param variance \code{"adjusted"} (default; accounts for the data-dependent
+#'   weight in RG-H and RG-R) or \code{"posterior"} (weight treated as fixed).
 #' @param posterior \code{"normal"} (normal approximation with exact moments,
 #'   default) or \code{"draws"} (posterior sampling; RG-H, fixed power prior
-#'   and no borrowing only).
+#'   and no borrowing only, with \code{variance = "posterior"}).
 #' @param ndraw Number of draws when \code{posterior = "draws"}.
 #' @param convention RMST convention (see \code{\link{rmst_moments}}).
 #' @return An object of class \code{"bkmborrow"} with the weights, arm-level
@@ -94,10 +132,14 @@ bkm_borrow <- function(current, historical = list(), tau,
                        method = c("hazard", "rmst", "fixed", "none"),
                        k = 1, w = 0.5,
                        prior = c(0.001, 1), delta0 = 0,
+                       variance = c("adjusted", "posterior"),
                        posterior = c("normal", "draws"), ndraw = 4000,
                        convention = c("left", "endpoint")) {
   method <- match.arg(method)
   posterior <- match.arg(posterior)
+  variance <- match.arg(variance)
+  adjust <- variance == "adjusted" && method %in% c("hazard", "rmst")
+  if (adjust && posterior == "draws") stop("posterior = 'draws' requires variance = 'posterior'")
   convention <- match.arg(convention)
   arms <- c("control", "treatment")
   if (!all(arms %in% names(current))) stop("'current' needs 'control' and 'treatment'")
@@ -116,18 +158,17 @@ bkm_borrow <- function(current, historical = list(), tau,
     }
     m0 <- rmst_moments(prior[1] + h$X, prior[2] + h$Y, convention)
     z2 <- (m1$mean - m0$mean)^2 / (m1$var + m0$var)
-    ww <- if (method == "fixed") getpar(w, a) else {
-      kk <- getpar(k, a)
-      if (is.infinite(kk)) 0 else exp(-kk * z2)
-    }
+    kk <- getpar(k, a)
+    ww <- if (method == "fixed") getpar(w, a) else if (is.infinite(kk)) 0 else exp(-kk * z2)
+    vr <- 1 / (1 / m1$var + ww / m0$var)                  # posterior variance with w fixed (RG-R)
+    infl <- if (adjust) adjusted_variance(m1, m0, ww, kk) / vr else 1
     if (method == "rmst") {
-      prec <- 1 / m1$var + ww / m0$var
-      return(list(w = ww, z2 = z2, mean = (m1$mean / m1$var + ww * m0$mean / m0$var) / prec,
-                  var = 1 / prec, A = NULL, B = NULL))
+      return(list(w = ww, z2 = z2, mean = (m1$mean / m1$var + ww * m0$mean / m0$var) * vr,
+                  var = vr * infl, A = NULL, B = NULL))
     }
     po <- arm_posterior(c1, h, ww, prior)
     mm <- rmst_moments(po$A, po$B, convention)
-    list(w = ww, z2 = z2, mean = mm$mean, var = mm$var, A = po$A, B = po$B)
+    list(w = ww, z2 = z2, mean = mm$mean, var = mm$var * infl, A = po$A, B = po$B)
   })
   names(res) <- arms
 
@@ -152,7 +193,7 @@ bkm_borrow <- function(current, historical = list(), tau,
     rmst = rbind(control = c(mean = res$control$mean, var = res$control$var),
                  treatment = c(mean = res$treatment$mean, var = res$treatment$var)),
     diff = c(mean = dmean, sd = sqrt(dvar), lower = ci[1], upper = ci[2]),
-    delta0 = delta0, eta = eta, posterior = posterior, draws = draws,
+    delta0 = delta0, eta = eta, posterior = posterior, variance = variance, draws = draws,
     historical_arms = arms[!vapply(his, is.null, logical(1))]
   ), class = "bkmborrow")
 }
@@ -171,7 +212,7 @@ print.bkmborrow <- function(x, digits = 3, ...) {
       " 95% CrI (", format(x$diff["lower"], digits = digits + 1), ",",
       format(x$diff["upper"], digits = digits + 1), ")\n")
   cat("eta = Pr(Delta >", x$delta0, "| data) =", format(x$eta, digits = digits + 1),
-      paste0("[", x$posterior, "]"), "\n")
+      paste0("[", x$posterior, if (x$method %in% c("hazard", "rmst")) paste0(", ", x$variance, " variance"), "]"), "\n")
   invisible(x)
 }
 

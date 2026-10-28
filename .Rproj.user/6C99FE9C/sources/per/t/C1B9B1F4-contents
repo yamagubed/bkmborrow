@@ -1,7 +1,7 @@
 Package: bkmborrow
 Type: Package
 Title: Dynamic Historical Borrowing for Bayesian Kaplan-Meier Inference
-Version: 0.3.0
+Version: 0.4.1
 Authors@R: person("Yusuke", "Yamaguchi", email = "yamagubed@gmail.com",
     role = c("aut", "cre"))
 Description: Implements dynamic borrowing of historical survival data within
@@ -13,7 +13,8 @@ Description: Implements dynamic borrowing of historical survival data within
     event-free counts (RG-H) or is applied to the arm-level RMST as a normal
     power prior (RG-R). Historical data may be available for the control arm
     only, the treatment arm only, or both arms. Exact posterior moments of the
-    RMST, posterior sampling, and design stage calibration of the tolerance,
+    RMST, a variance for the borrowed estimate that accounts for the
+    data-dependent weight, posterior sampling, and design stage calibration of the tolerance,
     which determines the weight's tuning constant, over a prespecified range
     of harmful drift are provided.
 License: GPL (>= 3)
@@ -23,3 +24,7 @@ Imports: stats, parallel
 Suggests: testthat (>= 3.0.0)
 Config/testthat/edition: 3
 RoxygenNote: 7.3.3
+NeedsCompilation: no
+Packaged: 2026-10-28 06:56:53 UTC; root
+Author: Yusuke Yamaguchi [aut, cre]
+Maintainer: Yusuke Yamaguchi <yamagubed@gmail.com>

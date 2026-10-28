@@ -22,6 +22,7 @@ The tuning constant is expressed as a tolerance delta in days, k_g = log(2) bar 
 | `gamma_nb()` | threshold gamma0 at which no borrowing has type I error alpha |
 | `calibrate_delta()` | design stage calibration of the tolerance over a harmful-side drift range |
 | `bkm_weight()` | the RMST-guided weight for one arm |
+| `adjusted_variance()` | variance of a borrowed arm-level RMST that accounts for the data-dependent weight (used by default) |
 | `sim_arm()`, `true_rmst()` | daily-grid simulation helpers (follow-up is distinct from tau) |
 
 ## Example
@@ -38,6 +39,10 @@ bkm_success(fit, gamma0 = 0.976)
 ```
 
 To borrow only the control arm, pass `historical = list(control = ...)`; to borrow only the treatment arm, pass `historical = list(treatment = ...)`. `inst/examples/workflow.R` contains the complete design-and-analysis workflow used in the paper, including calibration.
+
+## Changes in 0.4.0
+
+* `bkm_borrow()` and `calibrate_delta()` gain `variance = c("adjusted", "posterior")`. The default accounts for the dependence of the weight on the data (`adjusted_variance()`), which restores the coverage of the credible interval and the type I error at no drift; `"posterior"` treats the weight as fixed, as in 0.3.0.
 
 ## Changes in 0.3.0
 

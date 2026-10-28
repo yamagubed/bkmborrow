@@ -13,6 +13,7 @@ bkm_borrow(
   w = 0.5,
   prior = c(0.001, 1),
   delta0 = 0,
+  variance = c("adjusted", "posterior"),
   posterior = c("normal", "draws"),
   ndraw = 4000,
   convention = c("left", "endpoint")
@@ -41,9 +42,12 @@ a single value or a named vector \code{c(control = , treatment = )}.}
 
 \item{delta0}{Margin \eqn{\delta_0} in \eqn{\Pr(\Delta > \delta_0 \mid \mathcal{D})} (default 0).}
 
+\item{variance}{\code{"adjusted"} (default; accounts for the data-dependent
+weight in RG-H and RG-R) or \code{"posterior"} (weight treated as fixed).}
+
 \item{posterior}{\code{"normal"} (normal approximation with exact moments,
 default) or \code{"draws"} (posterior sampling; RG-H, fixed power prior
-and no borrowing only).}
+and no borrowing only, with \code{variance = "posterior"}).}
 
 \item{ndraw}{Number of draws when \code{posterior = "draws"}.}
 
@@ -67,6 +71,13 @@ With \code{method = "rmst"} (RG-R), the current and historical arm-level
 posterior RMSTs are combined as a normal power prior with weight \eqn{w_g}.
 }
 \details{
+By default (\code{variance = "adjusted"}), the variance of each borrowed
+arm-level RMST accounts for the dependence of \eqn{w_g} on the data
+(\code{\link{adjusted_variance}}): RG-R uses \eqn{V^{\mathrm{adj}}_g}
+directly and RG-H multiplies its posterior variance by
+\eqn{V^{\mathrm{adj}}_g (1/V_{1g} + w_g/V_{0g})}. With
+\code{variance = "posterior"} the weight is treated as fixed.
+
 The posterior probability that the treatment is beneficial,
 \eqn{\eta = \Pr(\Delta > \delta_0 \mid \mathcal{D})} with
 \eqn{\Delta = \mu_{11} - \mu_{10}}, is by default computed by the normal
